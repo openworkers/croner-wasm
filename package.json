@@ -1,6 +1,6 @@
 {
   "name": "@openworkers/croner-wasm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "WebAssembly bindings for the croner cron expression parser",
   "type": "module",
   "main": "./dist/node/croner_wasm.js",
@@ -28,6 +28,8 @@
     "build:all": "./build-all.sh",
     "prepublishOnly": "bun run build:all",
     "test": "cargo test",
+    "test:js": "bun run build:node && node --test test.mjs",
+    "test:all": "cargo test && bun run test:js",
     "test:wasm": "wasm-pack test --headless --firefox"
   },
   "repository": {

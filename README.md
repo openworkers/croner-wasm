@@ -68,6 +68,15 @@ if (WasmCron.validate('0 * * * *')) {
   console.log('Valid cron pattern!');
 }
 
+// Validate with seconds option
+if (WasmCron.validate('0 * * * *', { seconds: 'disallowed' })) {
+  console.log('Valid 5-field pattern!');
+}
+
+if (!WasmCron.validate('0 * * * * *', { seconds: 'disallowed' })) {
+  console.log('6-field pattern rejected with disallowed seconds');
+}
+
 // Try-catch for parsing
 try {
   const cron = new WasmCron('invalid pattern');
@@ -86,21 +95,51 @@ console.log(result);
 // => { pattern: "0 0 * * FRI", description: "At 00:00 on Friday" }
 ```
 
+### Seconds Configuration
+
+You can control whether seconds are allowed, required, or disallowed:
+
+```javascript
+// Optional seconds (default) - accepts both 5 and 6 fields
+const cron1 = new WasmCron('0 * * * *');
+const cron2 = new WasmCron('0 * * * * *');
+
+// Disallow seconds - only 5-field patterns allowed
+const cron3 = new WasmCron('0 * * * *', { seconds: 'disallowed' });
+// new WasmCron('0 * * * * *', { seconds: 'disallowed' }); // ❌ Throws error
+
+// Require seconds - only 6-field patterns allowed
+const cron4 = new WasmCron('0 * * * * *', { seconds: 'required' });
+// new WasmCron('0 * * * *', { seconds: 'required' }); // ❌ Throws error
+```
+
 ### Advanced Usage
 
 ```javascript
-const cron = new WasmCron('*/5 * * * *');
+const cron = new WasmCron('*/5 * * * *', { timezone: 'UTC' });
 
 // Get pattern
 console.log(cron.pattern());
 // => "*/5 * * * *"
 
+// Check if pattern has seconds
+console.log(cron.hasSeconds());
+// => false
+
+const cronWithSeconds = new WasmCron('0/30 * * * * *');
+console.log(cronWithSeconds.hasSeconds());
+// => true
+
+// Get next run from now
+const next = cron.nextRun();
+
 // Get next run from specific date
 const from = new Date('2024-01-01T00:00:00Z');
-const next = cron.nextRunFrom(from);
+const nextFromDate = cron.nextRun(from);
 
-// Get multiple next runs from specific date
-const nextRuns = cron.nextRunsFrom(10, from);
+// Get multiple next runs
+const nextRuns = cron.nextRuns(10);          // From now
+const nextRunsFrom = cron.nextRuns(10, from); // From specific date
 
 // Check if a date matches the pattern
 const matches = cron.isMatch(new Date());
@@ -136,18 +175,20 @@ const matches = cron.isMatch(new Date());
 ### `WasmCron` Class
 
 #### Constructor
-- `new WasmCron(pattern: string)` - Parse a cron expression (throws on invalid)
+- `new WasmCron(pattern: string, options?: { timezone?: string, seconds?: 'optional' | 'required' | 'disallowed' })` - Parse a cron expression (throws on invalid)
+  - `seconds: 'optional'` (default) - Accept both 5 and 6-field patterns
+  - `seconds: 'required'` - Only accept 6-field patterns (with seconds)
+  - `seconds: 'disallowed'` - Only accept 5-field patterns (no seconds)
 
 #### Static Methods
-- `WasmCron.validate(pattern: string): boolean` - Validate a pattern
+- `WasmCron.validate(pattern: string, options?: { seconds?: 'optional' | 'required' | 'disallowed' }): boolean` - Validate a pattern
 
 #### Instance Methods
 - `describe(): string` - Get human-readable description
 - `pattern(): string` - Get the original pattern
-- `nextRun(): Date | null` - Get next occurrence from now
-- `nextRunFrom(date: Date): Date | null` - Get next occurrence from date
-- `nextRuns(count: number): Date[]` - Get N next occurrences from now
-- `nextRunsFrom(count: number, date: Date): Date[]` - Get N next occurrences from date
+- `hasSeconds(): boolean` - Check if pattern uses seconds (6-field format)
+- `nextRun(from?: Date): Date | null` - Get next occurrence (from now or specified date)
+- `nextRuns(count: number, from?: Date): Date[]` - Get N next occurrences (from now or specified date)
 - `isMatch(date: Date): boolean` - Check if date matches pattern
 
 ### Functions

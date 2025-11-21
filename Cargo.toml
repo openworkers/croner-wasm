@@ -2,6 +2,9 @@
 name = "croner-wasm"
 version = "0.1.0"
 edition = "2021"
+description = "WebAssembly bindings for the croner cron expression parser"
+repository = "https://github.com/openworkers/croner-wasm"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

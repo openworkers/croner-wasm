@@ -10,6 +10,7 @@ WebAssembly bindings for the [croner](https://github.com/Hexagon/croner-rust) cr
 - ✅ Support for seconds (6-field format)
 - ✅ Quartz scheduler extensions (L, W, #)
 - ✅ Zero dependencies (pure WASM)
+- ✅ Works in Node.js, browsers, and bundlers
 
 ## Installation
 
@@ -21,20 +22,17 @@ bun add @openworkers/croner-wasm
 
 ## Usage
 
-### Basic Example
+### Node.js
 
 ```javascript
-import init, { WasmCron } from '@openworkers/croner-wasm';
-
-// Initialize WASM module
-await init();
+import { WasmCron } from '@openworkers/croner-wasm';
 
 // Parse a cron expression
 const cron = new WasmCron('0 * * * *');
 
 // Get human-readable description
 console.log(cron.describe());
-// => "At 0 minutes past the hour"
+// => "At minute 0 past every hour."
 
 // Get next run time
 const next = cron.nextRun();
@@ -45,6 +43,19 @@ console.log(next);
 const nextRuns = cron.nextRuns(5);
 console.log(nextRuns);
 // => Array of 5 Date objects
+```
+
+### Browser (ES Modules)
+
+```javascript
+import init, { WasmCron } from '@openworkers/croner-wasm';
+
+// Initialize WASM module (required in browser)
+await init();
+
+// Parse a cron expression
+const cron = new WasmCron('0 * * * *');
+console.log(cron.describe());
 ```
 
 ### Validation
@@ -95,7 +106,7 @@ const nextRuns = cron.nextRunsFrom(10, from);
 const matches = cron.isMatch(new Date());
 ```
 
-### Supported Cron Formats
+## Supported Cron Formats
 
 **5-field format** (minute hour day month weekday):
 ```
@@ -120,38 +131,12 @@ const matches = cron.isMatch(new Date());
 0 0 * * 5#3      # Third Friday of the month
 ```
 
-## Building
-
-### Prerequisites
-
-- Rust (install via [rustup](https://rustup.rs/))
-- wasm-pack: `cargo install wasm-pack`
-
-### Build Commands
-
-```bash
-# Build for web (ES modules)
-bun run build
-
-# Build for Node.js
-bun run build:node
-
-# Build for bundlers (webpack, rollup, etc.)
-bun run build:bundler
-
-# Run Rust tests
-bun run test
-
-# Run WASM tests
-bun run test:wasm
-```
-
 ## API Reference
 
 ### `WasmCron` Class
 
 #### Constructor
-- `new WasmCron(pattern: string)` - Parse a cron expression
+- `new WasmCron(pattern: string)` - Parse a cron expression (throws on invalid)
 
 #### Static Methods
 - `WasmCron.validate(pattern: string): boolean` - Validate a pattern
@@ -168,6 +153,55 @@ bun run test:wasm
 ### Functions
 
 - `parseAndDescribe(pattern: string): { pattern: string, description: string }` - Parse and describe in one call
+
+## Package Exports
+
+This package supports multiple environments:
+
+```json
+{
+  "exports": {
+    ".": {
+      "node": "./dist/node/croner_wasm.js",
+      "browser": "./dist/croner_wasm.js",
+      "default": "./dist/bundler/croner_wasm.js"
+    }
+  }
+}
+```
+
+- **Node.js**: Uses CommonJS build automatically
+- **Browser**: Uses ES modules with WASM
+- **Bundlers** (webpack, rollup, vite): Uses optimized build
+
+## Building from Source
+
+### Prerequisites
+
+- Rust (install via [rustup](https://rustup.rs/))
+- wasm-pack: `cargo install wasm-pack`
+
+### Build Commands
+
+```bash
+# Build all targets (Node.js, browser, bundlers)
+bun run build:all
+
+# Or build individually
+bun run build           # Web only
+bun run build:node      # Node.js only
+bun run build:bundler   # Bundlers only
+
+# Run tests
+bun run test            # Rust tests
+bun run test:wasm       # WASM tests in browser
+```
+
+## File Size
+
+- WASM binary: ~119 KB (optimized)
+- JS glue code: ~12 KB
+- Total: ~131 KB
 
 ## License
 

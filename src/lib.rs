@@ -1,7 +1,34 @@
 use chrono::{DateTime, Utc};
-use croner::parser::{CronParser, Seconds};
-use std::str::FromStr;
+use croner::parser::{CronParser, Seconds, Year};
 use wasm_bindgen::prelude::*;
+
+/// Parse the seconds option from a JS options object
+fn parse_seconds_option(options: Option<js_sys::Object>) -> Result<Seconds, JsValue> {
+    let Some(opts) = options else {
+        return Ok(Seconds::Optional);
+    };
+
+    let Ok(seconds_value) = js_sys::Reflect::get(&opts, &"seconds".into()) else {
+        return Ok(Seconds::Optional);
+    };
+
+    if seconds_value.is_undefined() {
+        return Ok(Seconds::Optional);
+    }
+
+    let seconds_str = seconds_value
+        .as_string()
+        .ok_or_else(|| js_sys::Error::new("'seconds' option must be a string"))?;
+
+    match seconds_str.as_str() {
+        "optional" => Ok(Seconds::Optional),
+        "required" => Ok(Seconds::Required),
+        "disallowed" => Ok(Seconds::Disallowed),
+        _ => Err(js_sys::Error::new(
+            "'seconds' option must be 'optional', 'required', or 'disallowed'",
+        ).into()),
+    }
+}
 
 /// A WASM wrapper for the croner cron expression parser
 #[wasm_bindgen]
@@ -33,95 +60,26 @@ impl WasmCron {
     /// ```
     #[wasm_bindgen(constructor)]
     pub fn new(pattern: &str, options: Option<js_sys::Object>) -> Result<WasmCron, JsValue> {
-        // Parse seconds option from options object
-        let seconds_policy = if let Some(opts) = options {
-            if let Ok(seconds_value) = js_sys::Reflect::get(&opts, &"seconds".into()) {
-                if !seconds_value.is_undefined() {
-                    let seconds_str = seconds_value
-                        .as_string()
-                        .ok_or_else(|| JsValue::from_str("'seconds' option must be a string"))?;
+        let seconds_policy = parse_seconds_option(options)?;
 
-                    match seconds_str.as_str() {
-                        "optional" => Seconds::Optional,
-                        "required" => Seconds::Required,
-                        "disallowed" => Seconds::Disallowed,
-                        _ => return Err(JsValue::from_str(
-                            "'seconds' option must be 'optional', 'required', or 'disallowed'"
-                        )),
-                    }
-                } else {
-                    Seconds::Optional
-                }
-            } else {
-                Seconds::Optional
-            }
-        } else {
-            Seconds::Optional
-        };
-
-        // Build parser with seconds policy
+        // Build parser with seconds policy and year disabled
         let parser = CronParser::builder()
             .seconds(seconds_policy)
+            .year(Year::Disallowed)
             .build();
 
         let cron = parser
             .parse(pattern)
-            .map_err(|e| JsValue::from_str(&format!("Invalid cron pattern: {:?}", e)))?;
+            .map_err(|e| js_sys::Error::new(&format!("Invalid cron pattern: {:?}", e)))?;
 
-        // Detect if pattern has seconds (6 fields) by counting non-empty parts
-        let has_seconds = pattern.split_whitespace().count() == 6;
+        // Detect if pattern has seconds (6 fields) using the parsed pattern from the library
+        // Year is disabled, so we can only have 5 fields (no seconds) or 6 fields (with seconds)
+        let has_seconds = cron.pattern.to_string().split_whitespace().count() == 6;
 
         Ok(WasmCron {
             inner: cron,
             has_seconds,
         })
-    }
-
-    /// Validate a cron pattern without creating an instance.
-    /// Returns true if valid, false otherwise.
-    ///
-    /// # Arguments
-    /// * `pattern` - Cron expression to validate
-    /// * `options` - Optional configuration with `seconds` policy
-    ///
-    /// # Example
-    /// ```javascript
-    /// WasmCron.validate('0 * * * *');  // true
-    /// WasmCron.validate('0 * * * *', { seconds: 'disallowed' });  // true
-    /// WasmCron.validate('0 * * * * *', { seconds: 'disallowed' });  // false
-    /// ```
-    #[wasm_bindgen]
-    pub fn validate(pattern: &str, options: Option<js_sys::Object>) -> bool {
-        // Parse seconds option from options object
-        let seconds_policy = if let Some(opts) = options {
-            if let Ok(seconds_value) = js_sys::Reflect::get(&opts, &"seconds".into()) {
-                if !seconds_value.is_undefined() {
-                    if let Some(seconds_str) = seconds_value.as_string() {
-                        match seconds_str.as_str() {
-                            "optional" => Seconds::Optional,
-                            "required" => Seconds::Required,
-                            "disallowed" => Seconds::Disallowed,
-                            _ => return false, // Invalid option = invalid pattern
-                        }
-                    } else {
-                        return false; // Non-string option = invalid
-                    }
-                } else {
-                    Seconds::Optional
-                }
-            } else {
-                Seconds::Optional
-            }
-        } else {
-            Seconds::Optional
-        };
-
-        // Build parser with seconds policy
-        let parser = CronParser::builder()
-            .seconds(seconds_policy)
-            .build();
-
-        parser.parse(pattern).is_ok()
     }
 
     /// Get a human-readable description of the cron pattern.
@@ -242,16 +200,6 @@ pub fn parse_and_describe(pattern: &str) -> Result<JsValue, JsValue> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn test_validation() {
-        assert!(WasmCron::validate("0 * * * *"));
-        assert!(WasmCron::validate("*/5 * * * *"));
-        assert!(WasmCron::validate("0 0 * * FRI"));
-        assert!(!WasmCron::validate("invalid pattern"));
-    }
-
     // Note: Tests that use wasm_bindgen features (like Result<T, JsValue>)
     // need to be run with wasm-pack test instead of cargo test
 }

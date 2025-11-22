@@ -8,75 +8,43 @@ import pkg from './pkg-node/croner_wasm.js';
 const { WasmCron, parseAndDescribe } = pkg;
 
 describe('WasmCron', () => {
-  describe('validate()', () => {
-    it('should validate correct cron patterns', () => {
-      assert.ok(WasmCron.validate('0 * * * *'));
-      assert.ok(WasmCron.validate('*/5 * * * *'));
-      assert.ok(WasmCron.validate('0 0 * * FRI'));
-      assert.ok(WasmCron.validate('0 9-17 * * MON-FRI'));
-    });
-
-    it('should validate 6-field patterns with seconds', () => {
-      assert.ok(WasmCron.validate('0/30 * * * * *'));
-      assert.ok(WasmCron.validate('*/5 * * * * *'));
-      assert.ok(WasmCron.validate('0 0 * * * *'));
-    });
-
-    it('should validate Quartz extensions', () => {
-      assert.ok(WasmCron.validate('0 0 L * *')); // Last day of month
-      assert.ok(WasmCron.validate('0 0 15W * *')); // Nearest weekday to 15th
-      assert.ok(WasmCron.validate('0 0 * * 5L')); // Last Friday
-      assert.ok(WasmCron.validate('0 0 * * 5#3')); // 3rd Friday
-    });
-
-    it('should reject invalid patterns', () => {
-      assert.ok(!WasmCron.validate('invalid'));
-      assert.ok(!WasmCron.validate('99 * * * *'));
-      assert.ok(!WasmCron.validate(''));
-      assert.ok(!WasmCron.validate('* * * *')); // Too few fields
-    });
-
-    describe('with seconds option', () => {
-      it('should validate with optional seconds (default)', () => {
-        assert.ok(WasmCron.validate('0 * * * *'));
-        assert.ok(WasmCron.validate('0 * * * * *'));
-        assert.ok(WasmCron.validate('0 * * * *', { seconds: 'optional' }));
-        assert.ok(WasmCron.validate('0 * * * * *', { seconds: 'optional' }));
-      });
-
-      it('should validate with required seconds', () => {
-        assert.ok(WasmCron.validate('0 * * * * *', { seconds: 'required' }));
-        assert.ok(!WasmCron.validate('0 * * * *', { seconds: 'required' }));
-      });
-
-      it('should validate with disallowed seconds', () => {
-        assert.ok(WasmCron.validate('0 * * * *', { seconds: 'disallowed' }));
-        assert.ok(!WasmCron.validate('0 * * * * *', { seconds: 'disallowed' }));
-      });
-
-      it('should return false for invalid seconds option', () => {
-        assert.ok(!WasmCron.validate('0 * * * *', { seconds: 'invalid' }));
-      });
-
-      it('should return false for non-string seconds option', () => {
-        assert.ok(!WasmCron.validate('0 * * * *', { seconds: 123 }));
-      });
-    });
-  });
-
   describe('constructor', () => {
     it('should parse valid patterns', () => {
-      const cron = new WasmCron('0 * * * *');
-      assert.ok(cron);
+      assert.ok(new WasmCron('0 * * * *'));
+      assert.ok(new WasmCron('*/5 * * * *'));
+      assert.ok(new WasmCron('0 0 * * FRI'));
+      assert.ok(new WasmCron('0 9-17 * * MON-FRI'));
     });
 
-    it('should accept options object', () => {
-      const cron = new WasmCron('0 * * * *', { timezone: 'UTC' });
-      assert.ok(cron);
+    it('should parse 6-field patterns with seconds', () => {
+      assert.ok(new WasmCron('0/30 * * * * *'));
+      assert.ok(new WasmCron('*/5 * * * * *'));
+      assert.ok(new WasmCron('0 0 * * * *'));
+    });
+
+    it('should parse Quartz extensions', () => {
+      assert.ok(new WasmCron('0 0 L * *')); // Last day of month
+      assert.ok(new WasmCron('0 0 15W * *')); // Nearest weekday to 15th
+      assert.ok(new WasmCron('0 0 * * 5L')); // Last Friday
+      assert.ok(new WasmCron('0 0 * * 5#3')); // 3rd Friday
     });
 
     it('should throw on invalid patterns', () => {
-      assert.throws(() => new WasmCron('invalid pattern'));
+      assert.throws(() => new WasmCron('invalid'));
+      assert.throws(() => new WasmCron('99 * * * *'));
+      assert.throws(() => new WasmCron(''));
+      assert.throws(() => new WasmCron('* * * *')); // Too few fields
+    });
+
+    it('should throw Error objects with proper properties', () => {
+      try {
+        new WasmCron('invalid pattern');
+        assert.fail('Should have thrown');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+        assert.ok(e.message.length > 0);
+        assert.ok(e.stack);
+      }
     });
 
     describe('seconds option', () => {

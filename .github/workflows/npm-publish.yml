@@ -24,8 +24,15 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
       - name: Build WASM packages
-        run: npm run build:all
+        run: bun run build:all
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
